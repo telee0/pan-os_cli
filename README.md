@@ -60,7 +60,8 @@ options:
 
 Finally, these parameters can be overriden in some ways.
 
-- cf['hostname']: overriden by the target on command line
-- cf['username']: if empty, 'admin' is assumed
-- cf['password']: if empty, specified through the environment variable from cf['passenv']
+- cf['hostname']: overriden by "target" on command line
+- cf['username']: if empty, "admin" is assumed
+- cf['password']: if empty, specified through the environment variable from cf['passenv'] (initially PAPASS)
+- cf['verbose']: overriden by "-v" on command line
 
