@@ -32,6 +32,7 @@ cf = {
     'cnf_file': 'cnf-{}.json',   # config dump
     'cli_file': 'cli-{}.log',    # CLI output
     'sta_file': 'sta-{}.json',   # stats
+    'log_buf_size': 99,         # log buffer size in message count
 
     'verbose': True,
     'debug': False,
