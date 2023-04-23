@@ -44,17 +44,20 @@ def init():
     t = datetime.now().strftime('%H:%M:%S')
     print(f"[{step} {t}] verbose = {verbose}, debug = {debug}")
 
-    u, p1, p2 = 'username', 'password', 'passenv'
+    h, u, p, e = 'hostname', 'username', 'password', 'passenv'
+
+    if args.target is not None:
+        cf[h] = args.target  # overriden by the command line parameter 'target'
 
     if u not in cf or len(cf[u]) <= 0:
-        cf[u] = 'admin'  # default admin
+        cf[u] = 'admin'  # default 'admin'
 
-    if p1 not in cf or len(cf[p1]) <= 0:
-        cf[p1] = os.getenv(cf[p2]) if p2 in cf else None  # password from the environment variable
+    if p not in cf or len(cf[p]) <= 0:
+        cf[p] = os.getenv(cf[e]) if e in cf else None  # password from the env variable
 
-    if cf[p1] is None or len(cf[p1]) <= 0:
+    if cf[p] is None or len(cf[p]) <= 0:
         print("init: access not specified or empty")
-        print("init: check {0} for details ('{1}')".format(args.conf, p2))
+        print("init: check {0} for details ('{1}')".format(args.conf, e))
         exit(1)
 
 
@@ -253,7 +256,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if debug:
+    if not debug:
         print(args)
 
     read_conf(args.conf)
