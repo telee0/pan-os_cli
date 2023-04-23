@@ -13,7 +13,7 @@ https://pexpect.readthedocs.io/en/stable/index.html
 
 cf = {
     'hostname': '192.168.1.1',    # host name or IP of the target device
-    'username': 'admin',          # sensitive and not exported, default admin
+    'username': '',               # sensitive and not exported, default admin
     'password': '',               # sensitive and not exported, either here or through the env variable cf['passenv']
     'passenv': 'PAPASS',          # name of the environment variable for the password
     'prompt': r'.*>\s+',          # regex so prefixed with an 'r'
