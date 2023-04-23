@@ -13,14 +13,14 @@ https://pexpect.readthedocs.io/en/stable/index.html
 
 cf = {
     'hostname': '192.168.1.1',    # host name or IP of the target device
-    'username': '',               # sensitive and not exported, default admin
+    'username': 'admin',          # sensitive and not exported, default admin
     'password': '',               # sensitive and not exported, either here or through the env variable cf['passenv']
     'passenv': 'PAPASS',          # name of the environment variable for the password
     'prompt': r'.*>\s+',          # regex so prefixed with an 'r'
 
     # total time == time_delay + time_intervals * (iterations - 1)
 
-    'iterations': 5,             # number of iterations
+    'iterations': 3,             # number of iterations
     'time_delay': 1,             # initial delay in seconds
     'time_interval': 2,          # interval in seconds between iterations
 
@@ -28,6 +28,7 @@ cf = {
     'cli_timeout': 1,            # > 0 or the cli will not expect a prompt
 
     'job_dir':  'job-{}',        # job folder
+    'log_file': 'job-{}.log',    # job log
     'cnf_file': 'cnf-{}.json',   # config dump
     'cli_file': 'cli-{}.log',    # CLI output
     'sta_file': 'sta-{}.json',   # stats
@@ -82,6 +83,9 @@ cli = [
     c2
 ]
 
+# dictionary of search patterns for runtime metrics such as allocated sessions, packet rate, etc.
+# These search patterns are regex for locating target numbers from output files
+#
 metrics = {
     'activeTCPSessions':   r'active TCP sessions:\s+(\d+)',
     'activeUDPSessions':   r'active UDP sessions:\s+(\d+)',
