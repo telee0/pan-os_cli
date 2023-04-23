@@ -30,7 +30,7 @@ c1 = [
 ]
 ```
 
-If you use an IDE (e.g. PyCharm) for the scripts, configure the command line and the environment variable accordingly
+If you use an IDE (e.g. PyCharm) for the scripts, configure the command line and environment variables accordingly
 
 ```
 usage: pan-cli.py [-h] [-c [CONF]] [-v] [target]
