@@ -28,21 +28,20 @@ from paramiko_expect import SSHClientInteraction
 # from cli import cf, cli, metrics
 
 verbose, debug = False, False
+step = 0
 
 
 def init():
+    global step
     global args
     global verbose, debug
+
+    step = 0
 
     verbose = (cf['verbose'] and args.verbose) if 'verbose' in cf else verbose
     debug = cf['debug'] if 'debug' in cf else debug
 
-    step = '0.00'
-
     print(f"-- initialize the environment..")
-
-    t = datetime.now().strftime('%H:%M:%S')
-    print(f"[{step} {t}] verbose = {verbose}, debug = {debug}")
 
     h, u, p, e = 'hostname', 'username', 'password', 'passenv'
 
@@ -60,6 +59,30 @@ def init():
         print("init: check {0} for details ('{1}')".format(args.conf, e))
         exit(1)
 
+    t = datetime.now().strftime('%Y%m%d%H%M')
+    ddhhmm = t[6:12]
+
+    for f in ['job_dir', 'cnf_file', 'cli_file', 'sta_file', 'log_file']:
+        if f not in cf:
+            cf[f] = f
+        cf[f] = cf[f].format(ddhhmm)
+
+    # prepare the directory structure for job files
+    #
+    job_dir = cf['job_dir']  # .format(ddhhmm)
+    makedirs(job_dir, exist_ok=True)
+    os.chdir(job_dir)
+
+    log("[{0:02.2f} {1}] verbose = {2}, debug = {3}".format(step, '{}', verbose, debug))
+
+
+def log(message):
+    t = datetime.now().strftime('%H:%M:%S')
+    message = message.format(t)
+    # print("message:", message)
+    with open(cf['log_file'], 'a') as f:
+        f.write(message + "\n")
+
 
 # check here for more use cases
 #
@@ -76,10 +99,9 @@ def send_cli(interact, cli_idx):
     time_interval = cf['time_interval']
 
     for i in range(iterations):
-        for c_ in cli_:
+        for j, c_ in enumerate(cli_):
             if verbose:
-                t = datetime.now().strftime('%H:%M:%S')
-                print(f"[{cli_idx}.{i:02d} {t}] c =", c_)  # original form
+                log("[{0}.{1:02d} {2}] c = {3}".format(step, j, '{}', c_))
 
             c = (c_,) if isinstance(c_, str) else c_  # convert it back to a tuple in case of a string
 
@@ -91,7 +113,7 @@ def send_cli(interact, cli_idx):
                 if c_len >= 3:
                     timeout = c[2]
 
-            for j in range(count):  # repeat_count of each command line
+            for _ in range(count):  # repeat_count of each command line
                 if timeout > 0:
                     interact.expect([prompt], timeout=timeout)
                 interact.send(command)
@@ -105,6 +127,8 @@ def send_cli(interact, cli_idx):
 
 
 def collect_data():
+    global step
+
     output = []
 
     client = None
@@ -131,6 +155,7 @@ def collect_data():
             time.sleep(max(3, time_delay))  # wait for at least 3 seconds
             interact.send("")
             for i in range(len(cli)):
+                step += 1
                 print(f"-- submit CLI set #{i}..")
                 output += send_cli(interact, i)
         if debug:
@@ -144,21 +169,14 @@ def collect_data():
 
 
 def write_files(data, stats=None):
-    t = datetime.now().strftime('%Y%m%d%H%M')
-    ddhhmm = t[6:12]
+    global step
 
-    # prepare the directory structure for job files
-    #
-    job_dir = cf['job_dir'].format(ddhhmm)
-    makedirs(job_dir, exist_ok=True)
-    os.chdir(job_dir)
+    step += 1
 
     if verbose:
-        print(f"-- generate output at {job_dir}/..")
+        print(f"-- generate output at {cf['job_dir']}/..")
 
-    step = '0.00'
-
-    file = cf['cnf_file'].format(ddhhmm)
+    file = cf['cnf_file']  # .format(ddhhmm)
     with open(file, 'a') as f:
         username, cf['username'] = cf['username'], ''
         password, cf['password'] = cf['password'], ''
@@ -166,32 +184,31 @@ def write_files(data, stats=None):
         # json.dump({'cf': cf, 'cli': cli, 'metrics': metrics}, f)
         cf['username'], cf['password'] = username, password
         if verbose:
-            t = datetime.now().strftime('%H:%M:%S')
-            print(f"[{step} {t}] file = {file}")
+            log("[{0:02.2f} {1}] file = {2}".format(step, '{}', file))
 
-    file = cf['cli_file'].format(ddhhmm)
+    file = cf['cli_file']  # .format(ddhhmm)
     with open(file, 'a') as f:
         f.write("\n".join(data))
         if verbose:
-            t = datetime.now().strftime('%H:%M:%S')
-            print(f"[{step} {t}] file = {file}")
+            log("[{0:02.2f} {1}] file = {2}".format(step, '{}', file))
 
     if stats is None:
         return
 
-    file = cf['sta_file'].format(ddhhmm)
+    file = cf['sta_file']  # .format(ddhhmm)
     with open(file, 'a') as f:
         f.write(json.dumps(stats, indent=4))
         if verbose:
-            t = datetime.now().strftime('%H:%M:%S')
-            print(f"[{step} {t}] file = {file}")
+            log("[{0:02.2f} {1}] file = {2}".format(step, '{}', file))
 
 
 def analyze(data):
+    global step
+
+    step += 1
+
     if verbose:
         print(f"-- analyze data..")
-
-    step = '0.00'
 
     output = {}   # stats
     results = {}  # results extracted from data
@@ -213,23 +230,23 @@ def analyze(data):
         if len(results[key]) == 0:  # delete empty matches from the results
             del results[key]
 
-    for key in results.keys():
-        v_0 = float(results[key][0])
+    for i, key in enumerate(results.keys()):
+        v0 = float(results[key][0])
         s = {
-            'min': v_0, 'max': v_0,
+            'min': v0, 'max': v0,
             'ave': 0,
             'cnt': len(results[key])
         }
-        for v_i in results[key]:
-            value = float(v_i)
-            s['min'] = min(s['min'], value)
-            s['max'] = max(s['max'], value)
-            s['ave'] += value
+        for value in results[key]:
+            v = float(value)
+            s['min'] = min(s['min'], v)
+            s['max'] = max(s['max'], v)
+            s['ave'] += v
         s['ave'] /= s['cnt']
         if verbose:
-            t = datetime.now().strftime('%H:%M:%S')
-            print(f"[{step} {t}] {key}:", results[key])
-            print(f"[{step} {t}] stats:", s)
+            log("[{0}.{1:02d} {2}] {3}: {4}\n".format(step, i, '{0}', key, results[key]) +
+                "[{0}.{1:02d} {2}] stats: [{3}]".format(step, i, '{0}', repr(s)[1:-1])
+                )
         output[key] = s
 
     return output
@@ -250,24 +267,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pan-cli.py', description='Script to repeat PAN-OS CLI over SSH.')
     parser.add_argument('-c', '--conf', nargs='?', type=str, default="conf/cli.py", help="config file")
     parser.add_argument('-v', '--verbose', action='store_true', help="verbose mode")
-    parser.add_argument('target', nargs='?', help="IP of the target device")
+    parser.add_argument('target', nargs='?', help="IP of target device")
     parser.print_help()
     print()
 
     args = parser.parse_args()
 
     if not debug:
-        print(args)
+        print(args, "\n")
 
     read_conf(args.conf)
     from conf import cf, cli, metrics
 
     init()
-
-    if debug:
-        exit(0)
-        pass
-
     data_ = collect_data()
     stats_ = analyze(data_)
     write_files(data_, stats_)
