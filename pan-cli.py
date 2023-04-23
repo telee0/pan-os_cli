@@ -6,7 +6,7 @@ Script to repeat CLI commands on PAN-OS over SSH
 
 by Terence LEE <telee.hk@gmail.com>
 
-https://github.com/telee0/pan_scripts
+https://github.com/telee0/pan-os_cli
 https://pexpect.readthedocs.io/en/stable/index.html
 
 """
