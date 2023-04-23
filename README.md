@@ -32,9 +32,9 @@ c1 = [
 ]
 ```
 
-If you use an IDE (e.g. PyCharm) for the scripts, configure the command line and environment variables accordingly.
+If you use an IDE for the scripts, configure the command line and environment variables accordingly.
 
-Here is an example.
+Here is an example for PyCharm.
 
 - Script path: pan-os_cli\pan-cli.py
 - Parameters: -c conf/cli.py -v 192.168.1.254
