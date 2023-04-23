@@ -29,6 +29,7 @@ from paramiko_expect import SSHClientInteraction
 
 verbose, debug = False, False
 step = 0
+log_buf = []
 
 
 def init():
@@ -73,15 +74,23 @@ def init():
     makedirs(job_dir, exist_ok=True)
     os.chdir(job_dir)
 
-    log("[{0:02.2f} {1}] verbose = {2}, debug = {3}".format(step, '{}', verbose, debug))
+    log("[{0:02.2f}] verbose = {1}, debug = {2}".format(step, verbose, debug))
 
 
-def log(message):
+def log(message, flush=False):
+    global log_buf
+
     t = datetime.now().strftime('%H:%M:%S')
-    message = message.format(t)
+    message = f"[{t}] " + message
+    log_buf.append(message)
     # print("message:", message)
-    with open(cf['log_file'], 'a') as f:
-        f.write(message + "\n")
+    if len(log_buf) > cf['log_buf_size'] or flush:
+        with open(cf['log_file'], 'a') as f:
+            f.write("\n".join(log_buf))
+        log_buf.clear()
+        if len(log_buf) > 0:
+            print(f"log: entries not written to {cf['log_file']}")
+            exit(1)
 
 
 # check here for more use cases
@@ -89,6 +98,8 @@ def log(message):
 # https://github.com/fgimian/paramiko-expect/blob/master/examples/paramiko_expect-demo.py
 
 def send_cli(interact, cli_idx):
+    global step
+
     output = []
 
     cli_list = cli[cli_idx]
@@ -101,7 +112,7 @@ def send_cli(interact, cli_idx):
     for i in range(iterations):
         for j, c_ in enumerate(cli_):
             if verbose:
-                log("[{0}.{1:02d} {2}] c = {3}".format(step, j, '{}', c_))
+                log("[{0}.{1:02d}.{2:02d}] c = {3}".format(step, i, j, c_))
 
             c = (c_,) if isinstance(c_, str) else c_  # convert it back to a tuple in case of a string
 
@@ -128,6 +139,8 @@ def send_cli(interact, cli_idx):
 
 def collect_data():
     global step
+
+    step += 1
 
     output = []
 
@@ -184,22 +197,20 @@ def write_files(data, stats=None):
         # json.dump({'cf': cf, 'cli': cli, 'metrics': metrics}, f)
         cf['username'], cf['password'] = username, password
         if verbose:
-            log("[{0:02.2f} {1}] file = {2}".format(step, '{}', file))
+            log("[{0:02.2f}] file = {1}".format(step, file))
 
     file = cf['cli_file']  # .format(ddhhmm)
     with open(file, 'a') as f:
         f.write("\n".join(data))
         if verbose:
-            log("[{0:02.2f} {1}] file = {2}".format(step, '{}', file))
+            log("[{0:02.2f}] file = {1}".format(step, file))
 
-    if stats is None:
-        return
-
-    file = cf['sta_file']  # .format(ddhhmm)
-    with open(file, 'a') as f:
-        f.write(json.dumps(stats, indent=4))
-        if verbose:
-            log("[{0:02.2f} {1}] file = {2}".format(step, '{}', file))
+    if stats is not None:
+        file = cf['sta_file']  # .format(ddhhmm)
+        with open(file, 'a') as f:
+            f.write(json.dumps(stats, indent=4))
+            if verbose:
+                log("[{0:02.2f}] file = {1}".format(step, file))
 
 
 def analyze(data):
@@ -231,22 +242,23 @@ def analyze(data):
             del results[key]
 
     for i, key in enumerate(results.keys()):
-        v0 = float(results[key][0])
+        values = results[key]
+        v0 = float(values[0])
         s = {
             'min': v0, 'max': v0,
             'ave': 0,
-            'cnt': len(results[key])
+            'cnt': len(values)
         }
-        for value in results[key]:
+        for value in values:
             v = float(value)
             s['min'] = min(s['min'], v)
             s['max'] = max(s['max'], v)
             s['ave'] += v
         s['ave'] /= s['cnt']
         if verbose:
-            log("[{0}.{1:02d} {2}] {3}: {4}\n".format(step, i, '{0}', key, results[key]) +
-                "[{0}.{1:02d} {2}] stats: [{3}]".format(step, i, '{0}', repr(s)[1:-1])
-                )
+            j = i * 2
+            log("[{0}.{1:02d}] metrics = {2}: {3}".format(step, j, key, values))
+            log("[{0}.{1:02d}] stats   = stats: [{2}]".format(step, j + 1, s))
         output[key] = s
 
     return output
@@ -283,3 +295,8 @@ if __name__ == '__main__':
     data_ = collect_data()
     stats_ = analyze(data_)
     write_files(data_, stats_)
+
+    step += 1
+
+    if verbose:
+        log("[{0:02.2f}] job_dir = {1}".format(step, cf['job_dir']), flush=True)
