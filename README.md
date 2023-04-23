@@ -36,9 +36,9 @@ If you use an IDE (e.g. PyCharm) for the scripts, configure the command line and
 
 Here is an example.
 
-Script path: pan-os_cli\pan-cli.py
-Parameters: -c conf/cli.py -v 192.168.1.254
-Environment variables: PAPASS=admin
+- Script path: pan-os_cli\pan-cli.py
+- Parameters: -c conf/cli.py -v 192.168.1.254
+- Environment variables: PAPASS=pass123
 
 If you use shell like bash, just run the main script per the following usage.
 
