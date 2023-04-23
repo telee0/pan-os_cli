@@ -12,6 +12,8 @@ each repeated for a different number of times:
 
 For example, `show session all` will list sessions in pages, so there needs a space ` ` for the next page or `q` to stop.
 
+The last tuple member in ('q', 1, 0) is 0. Any non-positive value will cause it not wait for the prompt.
+
 ```
 c1 = [
     'show session info',
@@ -30,7 +32,15 @@ c1 = [
 ]
 ```
 
-If you use an IDE (e.g. PyCharm) for the scripts, configure the command line and environment variables accordingly
+If you use an IDE (e.g. PyCharm) for the scripts, configure the command line and environment variables accordingly.
+
+Here is an example.
+
+Script path: pan-os_cli\pan-cli.py
+Parameters: -c conf/cli.py -v 192.168.1.254
+Environment variables: PAPASS=admin
+
+If you use shell like bash, just run the main script per the following usage.
 
 ```
 usage: pan-cli.py [-h] [-c [CONF]] [-v] [target]
