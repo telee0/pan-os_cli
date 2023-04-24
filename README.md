@@ -43,19 +43,45 @@ Here is an example for PyCharm.
 If you use shell like bash, just run the main script per the following usage.
 
 ```
+[terence@centos-1 pan-os_cli]$ python3 pan-cli.py -c conf/cli-86.py -v 192.168.1.86
 usage: pan-cli.py [-h] [-c [CONF]] [-v] [target]
 
 Script to repeat PAN-OS CLI over SSH.
 
 positional arguments:
-  target                IP of the target device
+  target                IP of target device
 
-options:
+optional arguments:
   -h, --help            show this help message and exit
   -c [CONF], --conf [CONF]
                         config file
   -v, --verbose         verbose mode
 
+Namespace(conf='conf/cli-86.py', target='192.168.1.86', verbose=True) 
+
+-- initialize the environment..
+-- connect to 192.168.1.86 as admin..
+-- sleep for 30 seconds..
+-- submit CLI set #0..
+-- submit CLI set #1..
+-- sleep for 20 seconds..
+-- sleep for 20 seconds..
+-- sleep for 20 seconds..
+-- sleep for 20 seconds..
+-- sleep for 20 seconds..
+-- submit CLI set #2..
+-- analyze data..
+-- generate output at job-241054/..
+[terence@centos-1 pan-os_cli]$ cd job-241054/
+[terence@centos-1 job-241054]$ ls -la 
+total 120
+drwxrwxr-x 2 terence terence     96 Apr 24 10:57 .
+drwxrwxr-x 6 terence terence    117 Apr 24 10:54 ..
+-rw-rw-r-- 1 terence terence 103360 Apr 24 10:57 cli-241054.log
+-rw-rw-r-- 1 terence terence   2083 Apr 24 10:57 cnf-241054.json
+-rw-rw-r-- 1 terence terence   5888 Apr 24 10:57 job-241054.log
+-rw-rw-r-- 1 terence terence    855 Apr 24 10:57 sta-241054.json
+[terence@centos-1 job-241054]$
 ```
 
 Finally, these parameters can be overriden in some ways.
