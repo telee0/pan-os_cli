@@ -1,4 +1,4 @@
-# pan-os_cli v1.0
+# pan-os_cli v1.1
 Scripts to repeat CLI commands on PAN-OS over SSH
 
 pan-cli.py will submit a list of CLI (blocks), each repeated for a different number of times:
