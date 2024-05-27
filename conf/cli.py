@@ -1,6 +1,6 @@
 """
 
-pan-os_cli v1.0 [20230421]
+pan-os_cli v1.1 [20240521]
 
 Script to repeat CLI commands on PAN-OS over SSH
 
@@ -32,7 +32,7 @@ cf = {
     'cnf_file': 'cnf-{}.json',   # config dump
     'cli_file': 'cli-{}.log',    # CLI output
     'sta_file': 'sta-{}.json',   # stats
-    'log_buf_size': 99,         # log buffer size in message count
+    'log_buf_size': 99,          # log buffer size in message count
 
     'verbose': True,
     'debug': False,
@@ -88,15 +88,30 @@ cli = [
 # These search patterns are regex for locating target numbers from output files
 #
 metrics = {
-    'activeTCPSessions':   r'active TCP sessions:\s+(\d+)',
-    'activeUDPSessions':   r'active UDP sessions:\s+(\d+)',
-    'allocatedSessions':   r'allocated sessions:\s+(\d+)',
-    'connectionRate':      r'connection establish rate:\s+(\d+) cps',
-    'eth1_1BytesReceived': r'bytes received\s+(\d+)',
-    'packetRate':          r'Packet rate:\s+(\d+)\/s',
-    'vpnIPSecTunnels':     r'Total (\d+) tunnels found',
-    'test': r'abcde(\d)',
-    # 'test': r'(\wa\w+)\s',
+    'activeTCPSessions':    r'active TCP sessions:\s+(\d+)',
+    'activeUDPSessions':    r'active UDP sessions:\s+(\d+)',
+    'allocatedSessions':    r'allocated sessions:\s+(\d+)',
+    'connectionRate':       r'connection establish rate:\s+(\d+) cps',
+    'eth1_1BytesReceived':  r'bytes received\s+(\d+)',
+    'flow_ctrl':            r'flow_ctrl\s+:\s+(\d+)%',
+    'packetRate':           r'Packet rate:\s+(\d+)\/s',
+    'vpnIPSecTunnels':      r'Total (\d+) tunnels found',
+    'test':                 r'abcde(\d)',  # nothing happens if no match
+    # 'test':               r'(\wa\w+)\s',
+}
+
+dp = {
+    'command':              r'show\s+running\s+resource-monitor',
+    'dp_name':              r'^DP\s+(s\d+dp\d+):',
+    'cpu_load':             r'CPU load \(%\) during last (\d+) seconds:',
+    'core':                 'core',
+    'dp_name_default':      'dp',
+    'cores_per_group':      8,
+    'aggregate':            ('ave', 'max'),  # , 'min'),  # , 'sum', 'cnt'),
+    'csv_file':             "dp.csv",
+    'json_file':            "dp.json",
+    'plot_file':            "{0}-{1}.png",
+    'skip_first_row':       True,  # address the issue where the most recent row is incomplete (all 0's or low values)
 }
 
 if __name__ == '__main__':
