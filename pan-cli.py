@@ -1,6 +1,6 @@
 """
 
-pan-os_cli v1.0 [20230421]
+pan-os_cli v1.1 [20240521]
 
 Script to repeat CLI commands on PAN-OS over SSH
 
@@ -18,14 +18,17 @@ import os
 import re
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from os import makedirs
 from os.path import exists
 
 import paramiko
 from paramiko_expect import SSHClientInteraction
 
-# from cli import cf, cli, metrics
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+from scipy.interpolate import make_interp_spline
 
 verbose, debug = False, False
 step = 0
@@ -47,7 +50,7 @@ def init():
     h, u, p, e = 'hostname', 'username', 'password', 'passenv'
 
     if args.target is not None:
-        cf[h] = args.target  # overriden by the command line parameter 'target'
+        cf[h] = args.target  # overriden with the command line parameter 'target'
 
     if u not in cf or len(cf[u]) <= 0:
         cf[u] = 'admin'  # default 'admin'
@@ -73,6 +76,11 @@ def init():
     job_dir = cf['job_dir']  # .format(ddhhmm)
     makedirs(job_dir, exist_ok=True)
     os.chdir(job_dir)
+
+    # initialize dp
+    #
+    dp['timestamps'] = []
+    dp['output'] = {}
 
     log("[{0:02.2f}] verbose = {1}, debug = {2}".format(step, verbose, debug))
 
@@ -128,6 +136,11 @@ def send_cli(interact, cli_idx):
                 if timeout > 0:
                     interact.expect([prompt], timeout=timeout)
                 interact.send(command)
+
+                match = re.search(dp['command'], command)
+                if match is not None:
+                    dp['timestamps'].append(datetime.now())
+
                 output.append(interact.current_output_clean)
 
         if i < iterations - 1:
@@ -264,6 +277,182 @@ def analyze(data):
     return output
 
 
+def analyze_dp(data):
+    global step
+
+    step += 1
+
+    if verbose:
+        print(f"-- analyze DP data..")
+
+    output = {}
+    dp_name = dp['dp_name_default']
+    t, timestamp, s, seconds = 0, None, None, None
+
+    for text in data:
+        found = False
+        lines = text.split('\n')
+        i, n = 0, len(lines)
+        while i < n:
+            line = lines[i]
+            i += 1
+            match = re.search(dp['dp_name'], line)
+            if match is not None:
+                dp_name = match.group(1)
+                continue
+            match = re.search(dp['cpu_load'], line)
+            if match is not None:
+                found = True
+                seconds = min(cf['time_interval'], int(match.group(1)))  # seconds = number of data rows
+            else:
+                continue
+            if dp_name not in output:
+                output[dp_name] = {}
+                for aggregate in ('min', 'max', 'ave'):
+                    output[dp_name][aggregate] = []
+            cores = []
+            while i < n:
+                line = lines[i]
+                i += 1
+                if line.startswith(dp['core']):  # core   0   1   2   3
+                    cores = line.split()
+                    for core in cores[1:]:
+                        if core not in output[dp_name]:
+                            output[dp_name][core] = []
+                    timestamp = dp['timestamps'][t]
+                    s = seconds
+                else:
+                    values = line.split()
+                    if len(values) > 0:
+                        if s > 0:
+                            is_first_row = (s == seconds)
+                            timestamp -= timedelta(seconds=1)
+                            s -= 1
+                            if is_first_row and dp['skip_first_row']:  # skip the first data row (usually incomplete)
+                                pass
+                            else:
+                                for j, core in enumerate(cores[1:]):
+                                    value = values[j]
+                                    if value.isdigit():  # '*' ignored
+                                        value = int(value)
+                                        output[dp_name][core].append((timestamp, value))
+                                        if '_' not in output[dp_name]:
+                                            output[dp_name]['_'] = {}
+                                        if timestamp not in output[dp_name]['_']:
+                                            output[dp_name]['_'][timestamp] = []
+                                        output[dp_name]['_'][timestamp].append(value)
+                    else:
+                        break
+        if found:
+            t += 1
+
+    for dp_name in output.keys():
+        for timestamp in output[dp_name]['_'].keys():
+            values = output[dp_name]['_'][timestamp]
+            v0 = float(values[0])
+            s = {
+                'min': v0, 'max': v0,
+                'ave': 0,
+                'cnt': len(values)
+            }
+            for value in values:
+                v = float(value)
+                s['min'] = min(s['min'], v)
+                s['max'] = max(s['max'], v)
+                s['ave'] += v
+            s['ave'] /= s['cnt']
+            for aggregate in ('min', 'max', 'ave'):
+                output[dp_name][aggregate].append((timestamp, s[aggregate]))
+
+    dp['output'] = output
+
+    return output
+
+
+def plot_dp(data):
+    global step
+
+    step += 1
+
+    if verbose:
+        print(f"-- plotting DP..")
+
+    df_list = []
+
+    for dp_name in data.keys():
+        data_dp = data[dp_name]
+
+        core_max = 0
+        for core in data_dp.keys():
+            if core.isdigit():
+                core_max = max(core_max, int(core))  # safe to determine max core id
+
+        core_groups = []
+        for i in range(0, core_max, dp['cores_per_group']):
+            core_group = []
+            for j in range(i, i + dp['cores_per_group']):
+                core = str(j)
+                if core in data_dp and len(data_dp[core]) > 0:
+                    core_group.append(core)
+            core_groups.append(core_group)
+        core_groups.insert(0, [a for a in dp['aggregate'] if a in data_dp])
+        # core_groups.insert(0, [core for core_group in core_groups for core in core_group])  # group with all cores
+
+        if verbose:
+            print(f"-- DP {dp_name}: core_groups:", core_groups)
+
+        for i, core_group in enumerate(core_groups):
+            if len(core_group) == 0:
+                continue
+
+            plt.figure(figsize=(12, 8))
+
+            for core in core_group:
+                data_core = data_dp[core]
+                df = pd.DataFrame(data_core, columns=['timestamp', 'load'])
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+                df = df.sort_values(by='timestamp')
+
+                df['dp'] = dp_name
+                df['core'] = core
+                df_list.append(df)
+
+                x = (df['timestamp'] - df['timestamp'].min()) / np.timedelta64(1, 's')
+                y = df['load']
+
+                x_smooth = np.linspace(x.min(), x.max(), 300)
+                spline = make_interp_spline(x, y, k=3)
+                y_smooth = spline(x_smooth)
+
+                x_smooth_datetime = pd.to_datetime(df['timestamp'].min()) + pd.to_timedelta(x_smooth, unit='s')
+
+                if i > 0:
+                    plt.plot(x_smooth_datetime, y_smooth, label=f'Core {core}')
+                else:
+                    plt.plot(x_smooth_datetime, y_smooth, '-', label=f'Core all {core}')
+                    # plt.plot(x_smooth_datetime, y_smooth, 'o-', label=f'Core all {core}')
+                    # plt.step(x_smooth_datetime, y_smooth, where='mid', label=f'Core all {core}')
+                    plt.fill_between(x_smooth_datetime, y_smooth, step='mid', alpha=0.4)  # , color='skyblue')
+
+            if i == 0:
+                plt.title(f"DP Utilization ({dp_name})")
+            else:
+                plt.title(f"DP Utilization ({dp_name}) - Group {i}")
+            # plt.xlabel('Time')
+            plt.ylabel('CPU load (%)')
+            plt.xticks(rotation=45)
+            plt.yticks(np.arange(0, 101, 20))
+            plt.ylim(0, 100)
+            # plt.grid(True)
+            plt.grid(which='both', linestyle='--', linewidth=0.4, alpha=0.4)
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig(dp['plot_file'].format(dp_name, i))
+            plt.close()
+
+    pd.concat(df_list).to_csv(dp['csv_file'], index=False)
+
+
 def read_conf(cf_path):
     if not exists(cf_path):
         print("{0}: file not found".format(cf_path))
@@ -289,12 +478,15 @@ if __name__ == '__main__':
         print(args, "\n")
 
     read_conf(args.conf)
-    from conf import cf, cli, metrics
+    from conf import cf, cli, metrics, dp
 
     init()
     data_ = collect_data()
     stats_ = analyze(data_)
     write_files(data_, stats_)
+
+    data_dp_ = analyze_dp(data_)
+    plot_dp(data_dp_)
 
     step += 1
 
