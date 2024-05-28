@@ -1,0 +1,38 @@
+{
+    "activeTCPSessions": {
+        "min": 4.0,
+        "max": 834479.0,
+        "ave": 701712.1666666666,
+        "cnt": 24
+    },
+    "activeUDPSessions": {
+        "min": 0.0,
+        "max": 163698.0,
+        "ave": 133257.58333333334,
+        "cnt": 24
+    },
+    "allocatedSessions": {
+        "min": 4.0,
+        "max": 1004641.0,
+        "ave": 850759.25,
+        "cnt": 24
+    },
+    "connectionRate": {
+        "min": 0.0,
+        "max": 59484.0,
+        "ave": 50695.25,
+        "cnt": 24
+    },
+    "flow_ctrl": {
+        "min": 1.0,
+        "max": 36.0,
+        "ave": 28.166666666666668,
+        "cnt": 24
+    },
+    "packetRate": {
+        "min": 0.0,
+        "max": 3707608.0,
+        "ave": 3050850.9166666665,
+        "cnt": 24
+    }
+}
