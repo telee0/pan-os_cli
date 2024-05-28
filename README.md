@@ -2,7 +2,7 @@
 
 Scripts to repeat CLI commands on PAN-OS over SSH
 
-The latest version 1.1 supports DP plotting. Please check output samples in the folder output_sample_dp.
+The latest version 1.1 supports DP plotting. Please check output samples in the folder output_dp_samples.
 
 pan-cli.py will submit a list of CLI (blocks), each repeated for a different number of times:
 
