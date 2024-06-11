@@ -1,0 +1,85 @@
+(base) telee@M-KGVMGHP6FC ~ % conda create -n pan python=3.9
+Retrieving notices: ...working... done
+Collecting package metadata (current_repodata.json): done
+Solving environment: done
+
+
+==> WARNING: A newer version of conda exists. <==
+  current version: 23.5.2
+  latest version: 24.5.0
+
+Please update conda by running
+
+    $ conda update -n base -c defaults conda
+
+Or to minimize the number of packages updated during conda update use
+
+     conda install conda=24.5.0
+
+
+
+## Package Plan ##
+
+  environment location: /Users/telee/miniconda3/envs/pan
+
+  added / updated specs:
+    - python=3.9
+
+
+The following packages will be downloaded:
+
+    package                    |            build
+    ---------------------------|-----------------
+    ca-certificates-2024.3.11  |       hca03da5_0         128 KB
+    libffi-3.4.4               |       hca03da5_1         120 KB
+    openssl-3.0.13             |       h1a28f6b_2         4.3 MB
+    pip-24.0                   |   py39hca03da5_0         2.6 MB
+    python-3.9.19              |       hb885b13_1        11.7 MB
+    setuptools-69.5.1          |   py39hca03da5_0        1004 KB
+    sqlite-3.45.3              |       h80987f9_0         1.2 MB
+    tk-8.6.14                  |       h6ba3021_0         3.3 MB
+    tzdata-2024a               |       h04d1e81_0         116 KB
+    wheel-0.43.0               |   py39hca03da5_0         107 KB
+    xz-5.4.6                   |       h80987f9_1         371 KB
+    zlib-1.2.13                |       h18a0788_1          91 KB
+    ------------------------------------------------------------
+                                           Total:        24.9 MB
+
+The following NEW packages will be INSTALLED:
+
+  ca-certificates    pkgs/main/osx-arm64::ca-certificates-2024.3.11-hca03da5_0 
+  libcxx             pkgs/main/osx-arm64::libcxx-14.0.6-h848a8c0_0 
+  libffi             pkgs/main/osx-arm64::libffi-3.4.4-hca03da5_1 
+  ncurses            pkgs/main/osx-arm64::ncurses-6.4-h313beb8_0 
+  openssl            pkgs/main/osx-arm64::openssl-3.0.13-h1a28f6b_2 
+  pip                pkgs/main/osx-arm64::pip-24.0-py39hca03da5_0 
+  python             pkgs/main/osx-arm64::python-3.9.19-hb885b13_1 
+  readline           pkgs/main/osx-arm64::readline-8.2-h1a28f6b_0 
+  setuptools         pkgs/main/osx-arm64::setuptools-69.5.1-py39hca03da5_0 
+  sqlite             pkgs/main/osx-arm64::sqlite-3.45.3-h80987f9_0 
+  tk                 pkgs/main/osx-arm64::tk-8.6.14-h6ba3021_0 
+  tzdata             pkgs/main/noarch::tzdata-2024a-h04d1e81_0 
+  wheel              pkgs/main/osx-arm64::wheel-0.43.0-py39hca03da5_0 
+  xz                 pkgs/main/osx-arm64::xz-5.4.6-h80987f9_1 
+  zlib               pkgs/main/osx-arm64::zlib-1.2.13-h18a0788_1 
+
+
+Proceed ([y]/n)? y
+
+
+Downloading and Extracting Packages
+                                                                                                                             
+Preparing transaction: done                                                                                                  
+Verifying transaction: done                                                                                                  
+Executing transaction: done                                                                                                  
+#                                                                                                                            
+# To activate this environment, use                                                                                          
+#                                                                                                                            
+#     $ conda activate pan                                                                                                   
+#                                                                                                                            
+# To deactivate an active environment, use                                                                                   
+#                                                                                                                            
+#     $ conda deactivate                                                                                                     
+
+(base) telee@M-KGVMGHP6FC ~ % conda activate pan
+(pan) telee@M-KGVMGHP6FC ~ % 
