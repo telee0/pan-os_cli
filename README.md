@@ -1,3 +1,18 @@
+# pan-os_cli v2.1
+
+- Metric Vectorization
+Support plotting of multi-valued metrics, which are extracted with multiple regex groups
+
+- Derived Metrics from Primitive Metrics
+or composite metrics, which are derived or calculated from primitive metrics extracted from CLI output
+
+- Grid more visible on metric plots
+
+- Improved logging
+a lot easier now to keep track of script execution, including time elapsed and remaining
+
+- Some logic change per design
+
 # pan-os_cli v2.0
 
 Enhancemnent to support data visualization of any defined metrics, with graphs and grided graphs.
