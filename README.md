@@ -11,6 +11,8 @@ or composite metrics, which are derived or calculated from primitive metrics ext
 - Improved logging
 a lot easier now to keep track of script execution, including time elapsed and remaining
 
+- Configurable terminal size for screenful CLI output capture
+  
 - Some logic change per design
 
 # pan-os_cli v2.0
