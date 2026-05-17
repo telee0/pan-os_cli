@@ -1,5 +1,6 @@
 """
 
+pan-os_cli v2.1 [20260515]
 pan-os_cli v2.0 [20250420]
 
 Script to repeat CLI commands on PAN-OS over SSH
@@ -22,23 +23,17 @@ from datetime import datetime, timedelta
 from os import makedirs
 from os.path import exists
 
-import paramiko
-# from matplotlib import ticker
-from paramiko_expect import SSHClientInteraction
-
-import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import paramiko
+from paramiko_expect import SSHClientInteraction
 from scipy.interpolate import make_interp_spline, PchipInterpolator
-
-verbose, debug = True, False
-
-sess_ = None
 
 cf, cli, metrics, dp = {}, [], {}, {}
 
-sess = {
+ctx = {  # context to store runtime data
     'log_buf': [],
     'step': 0,
 }
@@ -48,7 +43,6 @@ def duration_to_seconds(duration_str):
     pattern = re.compile(r'\s*(?:(\d+)\s*[dD]\s*)?(?:(\d+)\s*[hH]\s*)?(?:(\d+)\s*[mM]\s*)?(?:(\d+)\s*[sS]\s*)?')
 
     match = pattern.match(duration_str)
-
     if not match:
         return 30  # raise ValueError("Invalid duration format")
 
@@ -61,82 +55,77 @@ def duration_to_seconds(duration_str):
 
 
 def init():
-    global cf
-    global sess, args
-    global verbose, debug
+    ctx['step'] = 0
 
-    sess['step'] = 0
+    print(ctx['args'], "\n")
 
-    verbose = args.verbose or cf['verbose'] if 'verbose' in cf else verbose
-    debug = cf['debug'] if 'debug' in cf else debug
+    log(f"-- [{ctx['step']}] initializing the environment..", echo=True)
 
-    log(f"-- [{sess['step']}] initializing the environment..", echo=True)
+    ctx['verbose'] = cf['verbose'] or ctx['args'].verbose
+    ctx['debug'] = cf['debug']
 
     h, u, p, e = 'hostname', 'username', 'password', 'passenv'
     x = (h, u, p)
     y = (None, 'admin', None)  # default
-    z = (args.host, args.user, os.getenv(cf[e]))  # specified
+    z = (ctx['args'].host, ctx['args'].user, os.getenv(cf[e]))  # specified
 
     for i, attr in enumerate(x):
-        sess[attr] = z[i] or cf[attr] or y[i]
-        value = sess[attr]
-        if verbose:
+        ctx[attr] = z[i] or cf[attr] or y[i]
+        value = ctx[attr]
+        if ctx['verbose']:
             print(f"\tinit: value = {value}")
         if not value:
             print("init: access undefined or empty")
-            print(f"init: check {args.conf} for details ('{attr}')")
+            print(f"init: check {ctx['args'].conf} for details ('{attr}')")
             exit(1)
 
-    # convert duration into seconds
+    # convert duration string into seconds
+    #
     if 'duration' in cf and len(cf['duration']) > 0:
-        sess['duration'] = duration_to_seconds(cf['duration'])
-        log(f"\tinit: (max) duration {cf['duration']} = {sess['duration']}s", echo=verbose)
+        ctx['duration'] = duration_to_seconds(cf['duration'])
+        log(f"\tinit: (max) duration {cf['duration']} = {ctx['duration']}s", echo=ctx['verbose'])
 
-    log(f"\tinit: (max) iterations {cf['iterations']}", echo=verbose)
+    log(f"\tinit: (max) iterations {cf['iterations']}", echo=ctx['verbose'])
 
     ddhhmm = datetime.now().strftime('%d%H%M')
 
-    for f in ('job_dir', 'cnf_file', 'cli_file', 'sta_file', 'log_file', 'sess_file'):
-        sess[f] = cf[f].format(ddhhmm) if f in cf else f"{f}-{ddhhmm}"
+    for f in ('job_dir', 'cnf_file', 'cli_file', 'sta_file', 'log_file', 'ctx_file'):
+        ctx[f] = cf[f].format(ddhhmm, ctx['hostname']) if f in cf else f"{f}-{ddhhmm}"
 
     # prepare the directory structure for job files
     #
-    job_dir = sess['job_dir']
+    job_dir = ctx['job_dir']
     makedirs(job_dir, exist_ok=True)
     os.chdir(job_dir)
 
-    # initialize the session (context)
-    #
-    sess['timestamps'] = []
+    ctx['timestamps'] = []
 
-    log(f"\tverbose = {verbose}, debug = {debug}", echo=verbose)
+    log(f"\tverbose = {ctx['verbose']}, debug = {ctx['debug']}", echo=ctx['verbose'])
 
 
 def log(message, echo=False, flush=False):
-    global sess
+    curr_time = datetime.now()
+    t = int((curr_time - ctx['start_time']).total_seconds())
+    elapsed = f"{t // 3600:02d}:{(t % 3600) // 60:02d}:{t % 60:02d}"
 
-    t = datetime.now().strftime('%H:%M:%S')
-    message = f"[{t}] " + message
+    message = f"[{curr_time.strftime('%H:%M:%S')} | {elapsed}] " + message
     if echo:
         print(message)
-    sess['log_buf'].append(message)
-    if len(sess['log_buf']) > cf['log_buf_size'] or flush:
-        with open(sess['log_file'], 'a') as f:
-            sess['log_buf'].append("")
-            f.write("\n".join(sess['log_buf']))
-        sess['log_buf'].clear()
-        if len(sess['log_buf']) > 0:
+    ctx['log_buf'].append(message)
+    if len(ctx['log_buf']) > cf['log_buf_size'] or flush:
+        with open(ctx['log_file'], 'a') as f:
+            ctx['log_buf'].append("")
+            f.write("\n".join(ctx['log_buf']))
+        ctx['log_buf'].clear()
+        if len(ctx['log_buf']) > 0:
             print(f"log: entries not written to {cf['log_file']}")
             exit(1)
 
 
 # check here for more use cases
-#
 # https://github.com/fgimian/paramiko-expect/blob/master/examples/paramiko_expect-demo.py
-
+#
 def send_cli(interact, cli_idx):
-    global sess
-
     output = []
 
     cli_list = cli[cli_idx]
@@ -146,12 +135,12 @@ def send_cli(interact, cli_idx):
     prompt = cf['prompt']
     time_interval = cf['time_interval']
 
-    log(f"\tsend_cli: {len(cli_)} entries from set #{cli_idx} for {iterations} (max) iterations..", echo=verbose)
+    log(f"\tsend_cli: {len(cli_)} entries from set #{cli_idx} for {iterations} (max) iterations..", echo=ctx['verbose'])
 
     for i in range(iterations):
         t0 = datetime.now()
         for j, c_ in enumerate(cli_):
-            log(f"[{sess['step']}_{i}/{iterations}_{j}] c = {c_}")
+            log(f"[{ctx['step']}:{i}.{j}/{iterations}] c = {c_}")
 
             c = (c_,) if isinstance(c_, str) else c_  # wrap the CLI command in a tuple
 
@@ -170,30 +159,32 @@ def send_cli(interact, cli_idx):
 
                 match = re.search(dp['command'], command)
                 if match is not None:
-                    sess['timestamps'].append(datetime.now())
+                    ctx['timestamps'].append(datetime.now())
 
-                output.append(interact.current_output_clean)
+                o = interact.current_output_clean
+                o = o.replace('\x00', '')
+                o = re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', o)
+                output.append(o)
+                # output.append(interact.current_output_clean)
 
-        log(f"-- [{sess['step']}_{i+1}/{iterations}] CLI set executed in {datetime.now() - t0}", echo=verbose)
+        log(f"-- [{ctx['step']}] CLI set executed in {datetime.now() - t0}", echo=ctx['verbose'])
 
-        # stop at command set level if time elapsed has exceeded sess['duration_seconds']
+        # stop at command set level if time elapsed has exceeded ctx['duration_seconds']
         #
-        t = (datetime.now() - sess['start_time']).total_seconds()
-        if t >= sess['duration']:
-            log(f"\tt = {t} s", echo=debug)
+        t = (datetime.now() - ctx['start_time']).total_seconds()
+        if t >= ctx['duration']:
+            log(f"\trun time exceeded t = {t} >= {ctx['duration']} s (ctx['duration'])", echo=ctx['debug'])
             break
 
         if i < iterations - 1:
-            log(f"\tsend_cli: sleep for {time_interval} seconds..", echo=verbose)
+            log(f"\tsend_cli: sleep for {time_interval} seconds..", echo=ctx['verbose'])
             time.sleep(time_interval)
 
     return output
 
 
 def collect_data():
-    global sess
-
-    sess['step'] += 1
+    ctx['step'] += 1
 
     output = []
 
@@ -203,122 +194,193 @@ def collect_data():
         client = paramiko.SSHClient()
         client.load_system_host_keys()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname=sess['hostname'], username=sess['username'], password=sess['password'])
+        client.connect(
+            hostname=ctx['hostname'],
+            username=ctx['username'],
+            password=ctx['password']
+        )
     except Exception as e:
         print("collect_data:", e)
         client.close()
-        sess['close_time'] = datetime.now()
+        ctx['close_time'] = datetime.now()
         exit(1)
 
-    sess['connect_time'] = datetime.now()
-    log(f"-- [{sess['step']}] connected to host {sess['hostname']} as {sess['username']}..", echo=True)
+    ctx['connect_time'] = datetime.now()
+    log(f"-- [{ctx['step']}] connected to host {ctx['hostname']} as {ctx['username']}..", echo=True)
 
     time_delay = cf['time_delay']
 
     try:
-        with SSHClientInteraction(client, timeout=10, display=False) as interact:
-            log(f"\tcollect_data: sleep for {time_delay} seconds..", echo=verbose)
+        # with SSHClientInteraction(client, timeout=10, display=False) as interact:
+        with SSHClientInteraction(
+                client, timeout=10, display=False,
+                tty_width=cf['tty_size'][0], tty_height=cf['tty_size'][1]
+        ) as interact:
+            log(f"\tcollect_data: sleep for {time_delay} seconds..", echo=ctx['verbose'])
             time.sleep(max(3, time_delay))  # wait for at least 3 seconds
             interact.send("")
             for i in range(len(cli)):
-                sess['step'] += 1
-                log(f"-- [{sess['step']}] submitting CLI set #{i}..", echo=True)
+                ctx['step'] += 1
+                log(f"-- [{ctx['step']}] submitting CLI set #{i}..", echo=True)
                 t = datetime.now()
                 output += send_cli(interact, i)
-                log(f"-- [{sess['step']}] total execution time for CLI set #{i}: {datetime.now() - t}", echo=verbose)
-        if debug:
-            log("\n".join(output), echo=debug)
+                log(f"-- [{ctx['step']}] total execution time for CLI set #{i}: {datetime.now() - t}", echo=ctx['verbose'])
+        if ctx['debug']:
+            log("\n".join(output), echo=ctx['debug'])
     except Exception as e:
         print(e)
     finally:
         client.close()
-        sess['close_time'] = datetime.now()
+        ctx['close_time'] = datetime.now()
 
     return output
 
 
 def write_files(data, stats=None):
-    global sess
+    ctx['step'] += 1
 
-    sess['step'] += 1
+    log(f"-- [{ctx['step']}] generating output at {ctx['job_dir']}/..", echo=True)
 
-    log(f"-- [{sess['step']}] generating output at {sess['job_dir']}/..", echo=True)
-
-    file = sess['cnf_file']  # .format(ddhhmm)
+    file = ctx['cnf_file']  # .format(ddhhmm)
     with open(file, 'a') as f:
-        username, cf['username'] = cf['username'], ''
-        password, cf['password'] = cf['password'], ''
-        f.write(json.dumps({'cf': cf, 'cli': cli, 'metrics': metrics, 'dp': dp}, indent=4))
+        password = cf['password']
+        del cf['password']
+        f.write(json.dumps({'cf': cf, 'cli': cli, 'metrics': metrics, 'metrics2': metrics2, 'dp': dp}, indent=2))
         # json.dump({'cf': cf, 'cli': cli, 'metrics': metrics}, f)
-        cf['username'], cf['password'] = username, password
-        log(f"\tfile {file} saved", echo=verbose)
+        cf['password'] = password
+        log(f"\tfile {file} saved", echo=ctx['verbose'])
 
-    file = sess['cli_file']  # .format(ddhhmm)
+    file = ctx['cli_file']  # .format(ddhhmm)
     with open(file, 'a') as f:
         f.write("\n".join(data))
-        log(f"\tfile {file} saved", echo=verbose)
+        log(f"\tfile {file} saved", echo=ctx['verbose'])
 
     if stats is not None:
-        file = sess['sta_file']  # .format(ddhhmm)
+        file = ctx['sta_file']  # .format(ddhhmm)
         with open(file, 'a') as f:
-            f.write(json.dumps(stats, indent=4, default=str))
-            log(f"\tfile {file} saved", echo=verbose)
+            f.write(json.dumps(stats, indent=2, default=str))
+            log(f"\tfile {file} saved", echo=ctx['verbose'])
+
+
+def get_joke():
+    try:
+        import pyjokes
+        print(f"\n{pyjokes.get_joke()}")
+    except Exception:
+        pass
+
+
+def cleanup():
+    ctx['step'] += 1
+
+    log(f"-- [{ctx['step']}] cleaning up..", echo=True)
+
+    del ctx['password']  # no longer needed from now on, so to not be saved
+
+    if ctx['verbose']:
+        for key in ctx:
+            if key not in ('log_buf', 'dp_output'):
+                log(f"\tctx['{key}']: {ctx[key]}", echo=ctx['verbose'])
+        for key, val in ctx['dp_output'].items():
+            if isinstance(val, dict):
+                for k, v in ctx['dp_output'][key].items():
+                    ctx['dp_output'][key][k] = None
+                log(f"\tctx['dp_output']['{key}'].keys(): {ctx['dp_output'][key].keys()}", echo=ctx['verbose'])
+
+    duration = timedelta(seconds=ctx['duration'])
+    log(f"\ttime connected: {ctx['close_time'] - ctx['connect_time']} / {duration}", echo=True)
+    ctx['end_time'] = datetime.now()
+    log(f"\ttime elapsed: {ctx['end_time'] - ctx['start_time']} / {duration}", echo=True)
+    log(f"-- [{ctx['step']}] job {ctx['job_dir']} completed, exiting..", echo=True, flush=True)
+
+    get_joke()
+
+    file = ctx['ctx_file']
+    for key, val in ctx.items():
+        if isinstance(val, dict):
+            for k, v in val.items():
+                if isinstance(v, set):
+                    val[k] = list(v)
+        elif isinstance(val, list):
+            ctx[key] = [v.isoformat() if isinstance(v, datetime) else v for v in val]
+        # elif isinstance(val, set): ctx[key] = list(val)
+        elif isinstance(val, datetime):
+            ctx[key] = val.isoformat()
+    with open(file, "w", encoding="utf-8") as f:
+        json.dump(ctx, f, indent=2,
+            skipkeys=True,
+            default=lambda o: '<not serializable>',
+        )
 
 
 def analyze(data):
-    global sess, metrics
+    ctx['step'] += 1
 
-    sess['step'] += 1
-
-    log(f"-- [{sess['step']}] analyzing data..", echo=True)
+    log(f"-- [{ctx['step']}] analyzing data..", echo=True)
 
     output = {}   # stats
     results = {}  # results extracted from data
 
-    for key in metrics.keys():
-        pattern = metrics[key]
-        results[key] = []
+    for metric, pat_list in metrics.items():
+        results[metric] = []
+        if isinstance(pat_list, tuple):
+            pattern = pat_list[0]
+        else:
+            pattern = pat_list
         for i, text in enumerate(data):
-            matches = re.findall(pattern, text)
-            if matches:
-                for m in matches:
-                    results[key].append(m)
-                    break  # skip the rest of the matches
-                if debug:
-                    log(f"matches: {matches}", echo=debug)
-            if debug:
-                log(f"{i} - text = {text}", echo=debug)
-                log("-" * 80, echo=debug)
-        if len(results[key]) == 0:  # delete empty matches from the results
-            del results[key]
+            match = re.search(pattern, text)
+            if match:
+                values = list(match.groups())
+                results[metric].append(values)
+                if ctx['debug']:
+                    log(f"analyze: match {metric} values {values}", echo=ctx['debug'])
+            if ctx['debug']:
+                log(f"{i} - text = {text}", echo=ctx['debug'])
+                log("-" * 80, echo=ctx['debug'])
+        if len(results[metric]) == 0:  # delete empty matches from the results
+            del results[metric]
 
-    for i, key in enumerate(results.keys()):
-        values = results[key]
-        v0 = float(values[0])
+    np_dict = {}
+    for key, val_list in results.items():
+        val_np = np.array(val_list, dtype=float)
+        if ctx['debug']:
+            print(val_np)
+        np_dict[key] = val_np
+
+    for key, expr in metrics2.items():
+        metric = key + '2' if key in metrics else key
+        try:
+            with np.errstate(divide='raise', invalid='raise', over='raise'):
+                val_np = eval(expr, {"__builtins__": None}, np_dict)
+                val_np = np.asarray(val_np).reshape(-1, 1)  # shape always (T, 1)
+        except Exception as e:
+            print(f"[WARN] analyze: {key} failed: '{expr}': {e}")
+            continue
+        np_dict[metric] = val_np
+
+    for key, val_np in np_dict.items():
         s = {
-            'min': v0, 'max': v0,
-            'ave': 0,
-            'val': list(zip(sess['timestamps'], values)),
-            'cnt': len(values),
+            'min': np.min(val_np, axis=0).tolist(),
+            'max': np.max(val_np, axis=0).tolist(),
+            'ave': np.mean(val_np, axis=0).tolist(),
+            'cnt': int(val_np.shape[0]),
+            'val': [(ctx['timestamps'][i], val_np[i].tolist()) for i in range(len(ctx['timestamps']))]
         }
-        for value in values:
-            v = float(value)
-            s['min'] = min(s['min'], v)
-            s['max'] = max(s['max'], v)
-            s['ave'] += v
-        s['ave'] /= s['cnt']
         output[key] = s
-        log(f"\tmetrics: {key}: {s}", echo=verbose)
+
+    ctx['metrics'] = list(np_dict.keys())
+
+    if ctx['verbose']:
+        for key, value in output.items():
+            log(f"\tmetrics: {key}: {value}", echo=ctx['verbose'])
 
     return output
 
 
 def analyze_dp(data):
-    global sess
+    ctx['step'] += 1
 
-    sess['step'] += 1
-
-    log(f"-- [{sess['step']}] analyzing DP data..", echo=True)
+    log(f"-- [{ctx['step']}] analyzing DP data..", echo=True)
 
     output = {}
     dp_name = dp['dp_name_default']
@@ -354,7 +416,7 @@ def analyze_dp(data):
                     for core in cores[1:]:
                         if core not in output[dp_name]:
                             output[dp_name][core] = []
-                    timestamp = sess['timestamps'][t]
+                    timestamp = ctx['timestamps'][t]
                     s = seconds
                 else:
                     values = line.split()
@@ -382,9 +444,9 @@ def analyze_dp(data):
             t += 1
 
     for dp_name in output.keys():
-        if verbose:
+        if ctx['verbose']:
             _, values_0 = next(iter(output[dp_name]['_'].items()))
-            log(f"\tanalyze_dp: DP {dp_name}: {len(values_0)} cores", echo=verbose)
+            log(f"\tanalyze_dp: DP {dp_name}: {len(values_0)} cores", echo=ctx['verbose'])
         for timestamp in output[dp_name]['_'].keys():
             values = output[dp_name]['_'][timestamp]
             v0 = float(values[0])
@@ -402,17 +464,15 @@ def analyze_dp(data):
             for aggregate in ('min', 'max', 'ave'):
                 output[dp_name][aggregate].append((timestamp, s[aggregate]))
 
-    sess['dp_output'] = output
+    ctx['dp_output'] = output
 
     return output
 
 
 def plot_dp(data):
-    global sess
+    ctx['step'] += 1
 
-    sess['step'] += 1
-
-    log(f"-- [{sess['step']}] plotting DP..", echo=True)
+    log(f"-- [{ctx['step']}] plotting DP..", echo=True)
 
     df_list = []
     plot_groups = {'0': []}
@@ -439,7 +499,7 @@ def plot_dp(data):
         core_groups.insert(0, [a for a in dp['aggregate'] if a in data_dp])
         # core_groups.insert(0, [core for core_group in core_groups for core in core_group]) # group with all cores
 
-        log(f"\tplot_dp: DP {dp_name}: core_groups: {core_groups}", echo=verbose)
+        log(f"\tplot_dp: DP {dp_name}: core_groups: {core_groups}", echo=ctx['verbose'])
 
         for i, core_group in enumerate(core_groups):
             if len(core_group) == 0:
@@ -488,23 +548,16 @@ def plot_dp(data):
             plt.xticks(rotation=45)
             plt.yticks(np.arange(0, 101, 20))
             plt.ylim(0, 100)
-            # plt.grid(True)
             plt.grid(which='both', linestyle='--', linewidth=0.4, alpha=0.4)
             plt.legend()
             plt.tight_layout()
             plt.savefig(plot_file)
             plt.close()
 
-            log(f"\tplot {plot_file} saved", echo=verbose)
-
-    #
-    # export data to CSV
+            log(f"\tplot {plot_file} saved", echo=ctx['verbose'])
 
     pd.concat(df_list).to_csv(dp['csv_file'], index=False)
-    log(f"\tfile {dp['csv_file']} saved", echo=verbose)
-
-    #
-    # merge the summary plots
+    log(f"\tfile {dp['csv_file']} saved", echo=ctx['verbose'])
 
     merge_plots(plot_groups['0'], dp['plot_file_merged'], grid_size=dp['plot_grid_size'])
 
@@ -521,56 +574,91 @@ def read_conf(cf_path):
 
 
 def plot_stats(stats):
-    global metrics
+    ctx['step'] += 1
 
-    plt.style.use('seaborn-v0_8')
-    # plt.style.use('ggplot')
+    log(f"-- [{ctx['step']}] plotting stats..", echo=True)
+
+    plt.style.use('seaborn-v0_8')  # 'ggplot')
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
     plot_files = []
 
-    for i, metric in enumerate(metrics.keys()):
+    for i, metric in enumerate(ctx['metrics']):
         if metric not in stats:  # i also skipped
             continue
 
         plot_file = cf['plot_file'].format(i, metric)
         data = stats[metric]['val']
 
-        # Split into two lists
-        timestamps, values = zip(*data)
+        timestamps, values = zip(*data)  # Split into two lists
 
         x = np.array([mdates.date2num(ts) for ts in timestamps])
-        y = np.array([float(v) for v in values])
+        y = np.array(values, dtype=float)
 
         x_smooth = np.linspace(x.min(), x.max(), 300)
-        pchip = PchipInterpolator(x, y)
-        y_smooth = pchip(x_smooth)
-        # spline = make_interp_spline(x, y, k=2)  # avoid negative area
-        # y_smooth = spline(x_smooth)
 
         color = colors[i % len(colors)]
 
         plt.figure(figsize=(10, 5))
-        plt.plot(x_smooth, y_smooth, '-', label=metric)
-        plt.fill_between(x_smooth, y_smooth, step='mid', alpha=0.4, color=color)
+
+        legends, k = [metric], 0
+        if metric in metrics and isinstance(metrics[metric], tuple) and y.shape[1] > 1:
+            legends = metrics[metric][1]
+            if len(metrics[metric]) > 2:
+                k = metrics[metric][2]
+        log(f"\tplot_stats: metric {metric} legends {legends} k {k}", echo=True)
+
+        for j in range(y.shape[1]):
+            pchip = PchipInterpolator(x, y[:, j])
+            y_smooth = pchip(x_smooth)
+
+            highlight = (j == k)
+            linestyle = '-'  # if highlight else '--'
+            alpha = 0.95 if highlight else 0.65
+            linewidth = 2.2 if highlight else 1.6
+            zorder = 4 if highlight else 3
+
+            plt.plot(
+                x_smooth, y_smooth,
+                linestyle=linestyle,
+                label=legends[j],
+                alpha=alpha,
+                linewidth=linewidth,
+                zorder=zorder
+            )
+
+            if highlight:
+                plt.fill_between(
+                    x_smooth, y_smooth,
+                    color=color,
+                    alpha=0.45,
+                    zorder=1,
+                )
 
         ax = plt.gca()
+
+        ax.set_facecolor('#f8fafc')
+        ax.set_axisbelow(True)
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
         plt.gcf().autofmt_xdate()
 
         plt.xlabel("time")
         plt.ylabel(metric)
         plt.title(f"Plot {i} - {metric}")
-        # plt.legend()
-        plt.grid(which='both', linestyle='--', linewidth=0.4, alpha=0.4)
-        # plt.grid(True)
+        if y.shape[1] > 1:
+            plt.legend()
+
+        ax.grid(which='both', color='#000000', linestyle='-', linewidth=0.5, alpha=0.06)
+
         plt.tight_layout()
         plt.savefig(plot_file)
         plt.close()
 
+        log(f"\tplot {plot_file} saved", echo=ctx['verbose'])
+
         plot_files.append(plot_file)
 
-    merge_plots(plot_files, cf['plot_file_merged'], grid_size=dp['plot_grid_size'])
+    merge_plots(plot_files, cf['plot_file_merged'], grid_size=cf['plot_grid_size'])
 
 
 def merge_plots(source, target, grid_size=(1,1)):
@@ -580,7 +668,7 @@ def merge_plots(source, target, grid_size=(1,1)):
     if n_rows * n_cols <= 1 or n_plots <= 1:
         return
 
-    log(f"\tmerging {n_plots} plots", echo=verbose)
+    log(f"\tmerging {n_plots} plots", echo=ctx['verbose'])
 
     for i in range(0, n_plots, n_rows * n_cols):
         plot_file_merged = target.format(i)  # f"p-{i}.png"
@@ -600,48 +688,27 @@ def merge_plots(source, target, grid_size=(1,1)):
 
 
 if __name__ == '__main__':
-
-    sess['start_time'] = datetime.now()
+    ctx['start_time'] = datetime.now()
 
     parser = argparse.ArgumentParser(prog='pan-cli.py', description='Script to repeat CLI over SSH.', add_help=False)
     parser.add_argument('-c', '--conf', nargs='?', type=str, default="conf/cli.py", help="config")
     parser.add_argument('-h', '--host', type=str, help="host")
     parser.add_argument('-u', '--user', type=str, help="user")
     parser.add_argument('-v', '--verbose', action='store_true', help="verbose")
-    # parser.add_argument('target', nargs='?', help="IP of target device")
     parser.add_argument('-?', '--help', action='help', help='show this help message and exit')
     parser.print_help()
     print()
 
-    args = parser.parse_args()
+    ctx['args'] = parser.parse_args()
 
-    if verbose:
-        print(args, "\n")
-
-    read_conf(args.conf)
-    from conf import cf, cli, metrics, dp
+    read_conf(ctx['args'].conf)
+    from conf import cf, cli, metrics, metrics2, dp
 
     init()
     data_ = collect_data()
     stats_ = analyze(data_)
     plot_stats(stats_)
     write_files(data_, stats_)
-
     data_dp_ = analyze_dp(data_)
     plot_dp(data_dp_)
-
-    sess['step'] += 1
-    sess['end_time'] = datetime.now()
-
-    log(f"-- [{sess['step']}] exiting..", echo=True)
-    log(f"\ttime connected: {sess['close_time'] - sess['connect_time']} / {cf['duration']}", echo=True)
-    log(f"\ttime elapsed: {sess['end_time'] - sess['start_time']} / {cf['duration']}", echo=True)
-
-    if verbose:
-        for key in sess:
-            if key not in ('log_buf', 'dp_output'):
-                log(f"\tsess.{key}: {sess[key]}", echo=verbose)
-        if 'dp' in sess['dp_output']:
-            log(f"\tsess.dp_output.dp.keys: {sess['dp_output']['dp'].keys()}", echo=verbose)
-
-    log(f"-- [{sess['step']}] job {sess['job_dir']} completed", echo=True, flush=True)
+    cleanup()
