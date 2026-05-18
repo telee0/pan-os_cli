@@ -73,20 +73,22 @@ c1 = [
     (' ', 2, 0),  # space for the next page, totally 3 pages
     ('q', 1, 0),  # q to stop
     'set cli pager off',
+    'show session all filter application dns-base count yes',        # sessionFilterCount for dns-base
     'show running resource-monitor second last 30',
-    'show system resources | match ": "',
+    'show system resources | match ": "',                            # systemResources*
     # 'debug dataplane show ssl-decrypt ssl-stats',
-    # ('show session all filter count yes ssl-decrypt yes', 1, 10),  # to trace decrypted sessions
+    # ('show session all filter count yes ssl-decrypt yes', 1, 10),  # decrypted sessions
     # ('show session all filter count yes ssl-decrypt no', 1, 10),   #
     # 'show counter global | match proxy_process',                   # target global counters
     # 'show counter global | match session_installed',               #
     # 'show counter global filter delta yes severity warn',
     'show interface ethernet1/1 | match "received"',
     # 'show interface ethernet1/1 | match "bytes received"',
-    # 'show interface ethernet1/43 | match "bytes received"',
+    # 'show interface ethernet1/25 | match "bytes received"',
+    'debug log-receiver statistics | match "rate: "',                # log rates per MP
     'show session distribution policy',                              # chassis models
-    # 'show interface all | match ^node',                             # pa-7500 cluster
-    # 'show cluster nodes',                                           # pa-7500 cluster
+    # 'show interface all | match ^node',                            # pa-7500 cluster
+    # 'show cluster nodes',                                          # pa-7500 cluster
     # 'show vpn ipsec-sa summary | match "tunnels found"',
     # 'show global-protect-gateway statistics',
     # 'show lockless-qos enable',
@@ -118,9 +120,11 @@ metrics = {
     'eth1BytesReceived':    r'bytes received\s+(\d+)',
     'eth1PacketsReceived':  r'packets received\s+(\d+)',
     'flow_ctrl':            r'flow_ctrl\s+:\s+(\d+)%',
+    'logReceiverLogRate':   r'Log incoming rate:\s+(\d+)\/sec',
     'packetRate':           r'Packet rate:\s+(\d+)\/s',
+    'sessionFilterCount':   r'sessions that match filter:\s+(\d+)',
     'sessionTableUtil':     r'Session table utilization:\s+(\d+)%',
-    'systemResources': (    # %Cpu(s): 19.1 us,  2.7 sy,  0.0 ni, 78.2 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
+    'systemResourcesCpu': (    # %Cpu(s): 19.1 us,  2.7 sy,  0.0 ni, 78.2 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
         r'%Cpu\(s\):\s*'
         r'([\d.]+)\s+us,\s*'
         r'([\d.]+)\s+sy,\s*'
@@ -132,14 +136,22 @@ metrics = {
         r'([\d.]+)\s+st',
         ['us', 'sy', 'ni', 'id', 'wa', 'hi', 'si', 'st'],
     ),
+    'systemResourcesMemMiB': (  # MiB Mem :  16029.9 total,    306.4 free,   5997.2 used,   9726.2 buff/cache
+        r'MiB Mem\s+:\s*'
+        r'([\d.]+)\s+total,\s*'
+        r'([\d.]+)\s+free,\s*'
+        r'([\d.]+)\s+used,\s*'
+        r'([\d.]+)\s+buff',
+        ['total', 'free', 'used', 'buff/cache'], 2,
+    ),
     'throughputKbps':       r'Throughput:\s+(\d+) kbps',
-    # 'vpnIPSecTunnels':      r'Total (\d+) tunnels found',
+    # 'vpnIPSecTunnels':     r'Total (\d+) tunnels found',
 }
 
 metrics2 = {  # derived metrics
     'eth1PacketSizesAverage':   "eth1BytesReceived / eth1PacketsReceived",
-    'systemResourcesBusy':      "systemResources[:, 0] + systemResources[:, 1]",
-    'systemResourcesUsSy':      "100 - systemResources[:, 3]",
+    'systemResourcesCpuUsSy':   "systemResourcesCpu[:, 0] + systemResourcesCpu[:, 1]",
+    'systemResourcesCpuBusy':   "100 - systemResourcesCpu[:, 3]",
 }
 
 dp = {
