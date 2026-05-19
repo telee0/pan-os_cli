@@ -21,7 +21,7 @@ cf = {
 
     # max duration (? d ? h ? m ? s) <= time_delay + time_interval * (iterations - 1)
 
-    'duration': '0h2m0s',              # max duration in (? d ? h ? m ? s)
+    'duration': '0h0m30s',              # max duration in (? d ? h ? m ? s)
     'iterations': 999,                  # max number of iterations
     'time_delay': 10,                   # initial delay in seconds
     'time_interval': 10,                # interval in seconds between iterations
@@ -151,7 +151,10 @@ metrics = {
 metrics2 = {  # derived metrics
     'eth1PacketSizesAverage':   "eth1BytesReceived / eth1PacketsReceived",
     'systemResourcesCpuUsSy':   "systemResourcesCpu[:, 0] + systemResourcesCpu[:, 1]",
-    'systemResourcesCpuBusy':   "100 - systemResourcesCpu[:, 3]",
+    'systemResourcesCpuBusy': (
+        "np.column_stack((100 - systemResourcesCpu[:, 3], systemResourcesCpu[:, 3]))",
+        ['busy', 'idle'], 0,
+    ),
 }
 
 dp = {
