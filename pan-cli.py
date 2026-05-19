@@ -99,6 +99,7 @@ def init():
     os.chdir(job_dir)
 
     ctx['timestamps'] = []
+    ctx['metrics'] = {}
 
     log(f"\tverbose = {ctx['verbose']}, debug = {ctx['debug']}", echo=ctx['verbose'])
 
@@ -211,7 +212,6 @@ def collect_data():
     time_delay = cf['time_delay']
 
     try:
-        # with SSHClientInteraction(client, timeout=10, display=False) as interact:
         with SSHClientInteraction(
                 client, timeout=10, display=False,
                 tty_width=cf['tty_size'][0], tty_height=cf['tty_size'][1]
@@ -341,22 +341,26 @@ def analyze(data):
             del results[metric]
 
     np_dict = {}
-    for key, val_list in results.items():
+    for metric, val_list in results.items():
         val_np = np.array(val_list, dtype=float)
         if ctx['debug']:
             print(val_np)
-        np_dict[key] = val_np
+        np_dict[metric] = val_np
+        ctx['metrics'][metric] = metrics[metric]
 
-    for key, expr in metrics2.items():
-        metric = key + '2' if key in metrics else key
+    for metric2, metric_cf in metrics2.items():
+        metric = metric2 if metric2 not in metrics else f"{metric2}_2"
+        expr = metric_cf if not isinstance(metric_cf, tuple) else metric_cf[0]
         try:
             with np.errstate(divide='raise', invalid='raise', over='raise'):
-                val_np = eval(expr, {"__builtins__": None}, np_dict)
-                val_np = np.asarray(val_np).reshape(-1, 1)  # shape always (T, 1)
+                val_np = eval(expr, {"__builtins__": None}, {**np_dict, 'np': np})
+                if val_np.ndim == 1:
+                    val_np = np.asarray(val_np).reshape(-1, 1)  # (T,) reshaped to (T, 1)
         except Exception as e:
-            print(f"[WARN] analyze: {key} failed: '{expr}': {e}")
+            print(f"[WARN] analyze: {metric} failed: '{expr}': {e}")
             continue
         np_dict[metric] = val_np
+        ctx['metrics'][metric] = metrics2[metric2]
 
     for key, val_np in np_dict.items():
         s = {
@@ -368,9 +372,7 @@ def analyze(data):
         }
         output[key] = s
 
-    ctx['metrics'] = list(np_dict.keys())
-
-    if ctx['verbose']:
+    if ctx['debug']:
         for key, value in output.items():
             log(f"\tmetrics: {key}: {value}", echo=ctx['verbose'])
 
@@ -583,7 +585,7 @@ def plot_stats(stats):
 
     plot_files = []
 
-    for i, metric in enumerate(ctx['metrics']):
+    for i, (metric, metric_cf) in enumerate(ctx['metrics'].items()):
         if metric not in stats:  # i also skipped
             continue
 
@@ -602,10 +604,10 @@ def plot_stats(stats):
         plt.figure(figsize=(10, 5))
 
         legends, k = [metric], 0
-        if metric in metrics and isinstance(metrics[metric], tuple) and y.shape[1] > 1:
-            legends = metrics[metric][1]
-            if len(metrics[metric]) > 2:
-                k = metrics[metric][2]
+        if isinstance(metric_cf, tuple) and y.shape[1] > 1:
+            legends = metric_cf[1]
+            if len(metric_cf) > 2:
+                k = metric_cf[2]
         log(f"\tplot_stats: metric {metric} legends {legends} k {k}", echo=True)
 
         for j in range(y.shape[1]):
