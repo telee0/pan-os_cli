@@ -454,6 +454,7 @@ def plot_dp(data):
 
     df_list = []
     plot_groups = {'0': []}
+    watermark = []
 
     plt.style.use('default')
 
@@ -516,6 +517,7 @@ def plot_dp(data):
             if i == 0:
                 plot_groups['0'].append(plot_file)
                 plt.title(f"DP Utilization ({dp_name})")
+                watermark.append(dp_name)
             else:
                 plt.title(f"DP Utilization ({dp_name}) - Group {i}")
 
@@ -535,7 +537,7 @@ def plot_dp(data):
     pd.concat(df_list).to_csv(dp['csv_file'], index=False)
     ctx['log'].info(f"file {dp['csv_file']} saved")
 
-    combine_plots(plot_groups['0'], dp['plot_file_combined'], grid_size=dp['plot_grid_size'])
+    combine_plots(plot_groups['0'], dp['plot_file_combined'], grid_size=dp['plot_grid_size'], watermark=watermark)
 
 
 def read_conf(cf_path):
