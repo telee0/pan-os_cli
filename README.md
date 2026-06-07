@@ -1,3 +1,10 @@
+# pan-os_cli v2.2
+
+- logging with the standard module
+- watermark on combined plots
+- Additional metric visualization such as chassis power
+- Minor change for execution efficiency and readability
+
 # pan-os_cli v2.1
 
 - Metric Vectorization
