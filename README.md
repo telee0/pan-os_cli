@@ -4,7 +4,7 @@
 - watermark on combined plots
 - Additional metric visualization such as chassis power
 - Minor changes for execution efficiency and readability
-- combine_plots on its own py so can be used to combine selected plots with custom watermark
+- combine_plots on its own py as a utility script so can be used to combine selected plots with watermark
 
 # pan-os_cli v2.1
 
