@@ -1,7 +1,7 @@
 # pan-os_cli v2.3
 
 - Traffic logs retrieval (5,000) through API
-- With traffic logs, Visualization of top k Applications by columns
+- Visualization of top k Applications from traffic logs by columns
   - Session count
   - Bytes and Elapsed sum
   - Bytes and Elapsed average
