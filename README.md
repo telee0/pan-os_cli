@@ -1,3 +1,13 @@
+# pan-os_cli v2.3
+
+- Traffic logs retrieval (5,000) through API
+- With traffic logs, Visualization of top k Applications by columns
+  - Session count
+  - Bytes and Elapsed sum
+  - Bytes and Elapsed average
+- Distributions of Bytes and Elapsed, in log scale
+- plot_logs_traffic on their own py as a utility script so can be used to visualize traffic logs
+
 # pan-os_cli v2.2
 
 - logging with the standard module
