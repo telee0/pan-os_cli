@@ -1,4 +1,11 @@
-# pan-os_cli v2.3
+# pan-os_cli v2.4 [20260617]
+
+- New scripts support public key authentication.
+- They can authenticate either with username/password or username/private key
+- If the public key has not yet been deployed on a device, the scripts will fall back to authenticate with username/password. 
+- key pair can be generated with openssl. The private key can be put in a subfolder of the script.
+
+# pan-os_cli v2.3 [20260617]
 
 - Traffic logs retrieval (5,000) through API
 - Visualization of top k Applications from traffic logs by columns
@@ -8,7 +15,7 @@
 - Distributions of Bytes and Elapsed, in log scale
 - plot_logs_traffic on their own py as a utility script so can be used to visualize traffic logs
 
-# pan-os_cli v2.2
+# pan-os_cli v2.2 [20260607]
 
 - logging with the standard module
 - watermark on combined plots
@@ -16,7 +23,7 @@
 - Minor changes for execution efficiency and readability
 - combine_plots on its own py as a utility script so can be used to combine selected plots with watermark
 
-# pan-os_cli v2.1
+# pan-os_cli v2.1 [20260515]
 
 - Metric Vectorization
 Support plotting of multi-valued metrics, which are extracted with multiple regex groups
