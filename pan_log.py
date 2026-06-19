@@ -19,7 +19,7 @@ import time
 # log_type=traffic&
 # query=(elapsed geq 0)&
 # nlogs=100&
-# key=LUFRPT1Lb2Z4VDlGWFlJVm4yUE1rKzJtdzA2T3cvMTg9Nkk4RzVsVlpkbGVUU3ZZWVVmOENwaGlHNWR6bFZVSTJQWG5tNlBIKzE5UDlKNG1CcXMvOVJmVWFGc2tZVlhJSA==
+# key=LUFRPT1Lb2Z4VDlGWFlJVm4yUE1rKzJtdzA2T3cvMTg8Nkk4RzVsVlpkbGVUU3ZZWVVmOENwaGlHNWR6bFZVSTJQWG5tNlBIKzE5UDlKNG1CcXMvOVJmVWFGc2tZVlhJSA==
 
 def pan_get_traffic_logs(
     firewall, api_key,
