@@ -1,3 +1,7 @@
+# pan-os_cli v2.5 [20260622]
+
+- Additional visualizations of DP resources including session, packet buffer, packet descriptor and sw tags descriptor
+
 # pan-os_cli v2.4 [20260617]
 
 - New scripts support public key authentication.
