@@ -3,6 +3,7 @@
 - Additional visualizations of DP resources including session, packet buffer, packet descriptor and sw tags descriptor
 - Interpolation algorithm selectable for DP plotting. Now the default is PCHIP.
 - Fix of a bug where DP data points shift by 1s
+- Additional standard script report.py for pptx generation from data
 
 # pan-os_cli v2.4 [20260617]
 
