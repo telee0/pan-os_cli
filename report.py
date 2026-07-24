@@ -33,7 +33,7 @@ cf = {
     'subject': 'PA-5550 Performance Testing',
     'author': 'Terence <telee@>',
 
-    'poc_dir': 'data/POC12345 (QLDH)',
+    'poc_dir': 'data/POC12345',
     'test_case_prefixes': ['AP', 'AE', 'AVAM', 'URL', 'HA', 'TP', 'TC'],
     'bp_report': 'POC*.pdf',
     'job_dir': 'job-*',
