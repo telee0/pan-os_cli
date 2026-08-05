@@ -1,13 +1,9 @@
 """
 
-pan-os-cli v2.5 [20260622]
-pan-os-cli v2.4 [20260619]
-pan-os-cli v2.3 [20260617]
-pan-os-cli v2.2 [20260607]
-pan-os_cli v2.1 [20260515]
-pan-os_cli v2.0 [20250420]
+report v1.1 [20260802]
+report v1.0 [20260722]
 
-Script to repeat CLI commands on PAN-OS over SSH
+Script to generate a report in pptx with data collected by pan-os_cli
 
 by Terence LEE <telee.hk@gmail.com>
 
