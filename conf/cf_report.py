@@ -14,33 +14,37 @@ https://pexpect.readthedocs.io/en/stable/index.html
 
 cf = {
     'poc_number': 'POC18888',
-    'cust_name': 'Customer ABC',
-    'subject': 'PA-5550 Performance Testing',
-    'author': 'Terence Lee <telee.hk@gmail.hk>',
+    'poc_date': 'Aug 2026',
+    'cust_name': 'Terence Investment',
+    'subject': 'PA-5540 QoS Performance Testing',
+    'author': 'Terence Lee <telee.hk@gmail.com>',
 
-    'poc_dir': 'data/POC18888 (ABC)',
-    'report_dir': 'data',
+    'poc_dir': 'data/POC18888 (Terence Investment PA-5540 QoS)',
+    'report_dir': 'report-{}',
     'report_file': 'poc18888.pptx',
+    'log_file': 'report-{}.log',
 
     'template': 'data/pov_template.pptx',
     'sldId': {  # slide indexes
         'cover': 0,
         'agenda': 1,
         'summary': 2,        # executive summary
-        'results': 6,        # table of results
-        'section': 7,        # section cover
-        'case': 8,           # table of case
-        'last': 9,          # last slide
+        'setup': 5,          # setup details
+        'results': 7,        # table of results
+        'section': 8,        # section cover
+        'case': 9,           # table of case
+        'last': 10,          # last slide
         'new': 1,            # blank slide for content
-        'removal': (7, 9),  # (7, 27),  # slides to be removed [7, 27)
+        # 'removal': (7, 9),  # (7, 27),  # slides to be removed [7, 27)
     },
 
     'case_prefixes': ['AP', 'AE', 'AVAM', 'URL', 'HA', 'TP', 'TC'],
     'other_prefixes': ['PA'],
     'bp_reports': 'POC*.pdf',
-    'screenshot_files': 'Screenshot*.png',
-    'other_files': '[^S]*.png',
-    'image_files': '*.png',
+    # 'screenshot_files': '[^.]*Screenshot*.png',
+    'other_files': '[!.]*.png',
+    'other_files_exclude': ['throughput.png', 'traffic.png'],  # files to be excluded
+    'image_files': '[!.]*.png',
 
     'job_dir': 'job-*',
     'cli_file': 'cli-[0-9]*.log',
@@ -77,11 +81,15 @@ cf = {
     ],
 
     'bp_sections': {
-        'test_parameters': 'Test parameters',                        # section 3.2
-        'test_device': 'Test Device',                                # section 5.7 for tester details
-        'super_flow_data': 'Super Flow Data',                        # section 7.9
-        'super_flow_data_throughput': 'Super Flow Data Throughput',  # section 7.29.5
-        'super_flow_iterations': 'Super Flow Iterations',            # section 7.11
+        'test_parameters': 'Test parameters',                                       # section 3.2
+        'test_device': 'Test Device',                                               # section 5.7 for tester details
+        # 'super_flow_data': 'Super Flow Data',                                     # section 7.9
+        'super_flow_data_throughput': 'Super Flow Data Throughput',                 # section 7.29.5
+        'super_flow_iterations': 'Super Flow Iterations',                           # section 7.11
+        'transactions': 'Transactions',                                             # section 6.4.19
+        'tcp_average_time_response_packet': 'TCP Average Time to Response Packet',  # section 7.29.27
+        # 'tcp_average_time_to_open': 'TCP Average Time to Open',                     # section 7.26.21
+        # 'tcp_average_time_to_close': 'TCP Average Time to Close',                   # section 7.26.23
     },
     'bp_section_re': r'^\d+(\.\d+)+\.',
     'bp_table_values_trim': (0.05, 0.05),  # remove the first 5% and the last 5%
